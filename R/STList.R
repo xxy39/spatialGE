@@ -178,20 +178,20 @@ STlist = function(rnacounts=NULL, spotcoords=NULL, samples=NULL, cores=NULL, ver
   }
 
   # Test the validity of sample names
-  if(length(sample_names) > 0){
-    # Sample names SHOULD NOT begin with a number
-    test_number = any(sapply(sample_names, function(i){grepl("^[0-9]", i)}))
-    if(test_number){
-      raise_err(err_code='error0028')
+ if (length(sample_names) > 0) {
+    # Sample names cannot begin with a number
+    if (any(grepl("^[0-9]", sample_names))) {
+      raise_err(err_code = "error0028")
     }
-    # Test that sample names contain only alpha-numerics, spaces, dash, and underscores
-    test_chars = any(!sapply(sample_names, function(i){grepl("^[ //-_//A-Za-z0-9]+$", i)}))
-    if(test_chars){
-      raise_err(err_code='error0028')
+    # Sample names must contain only letters, numbers, dash, underscore, or space
+    invalid_names <- sample_names[!grepl("^[[:alpha:]][[:alnum:]_ -]*$", sample_names)]
+    if (length(invalid_names) > 0) {
+      message("Invalid sample names detected: ", paste(invalid_names, collapse = ", "))
+      raise_err(err_code = "error0028")
     }
-    rm(test_number, test_chars) # Clean env
-  } else{
-    raise_err(err_code='error0004')
+    rm(invalid_names)
+  } else {
+    raise_err(err_code = "error0004")
   }
 
 
