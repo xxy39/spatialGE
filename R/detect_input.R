@@ -381,10 +381,12 @@ detect_input = function(rnacounts=NULL, spotcoords=NULL, samples=NULL){
       } else if(dir.exists(samples_file_path_test[2]) && !dir.exists(samples_file_path_test[3])){
 
         if(dir.exists(samples_file_path_test[2])){
-          # Check that dirctory contains an element with name matching 'filtered_feature_bc'.
-          visium_check = list.files(samples_file_path_test[2], pattern='[raw|filtered]_feature_bc', include.dirs=T, full.names=T)
+          # Check for Visium or Xenium output
+          visium_check = list.files(samples_file_path_test[2], pattern='[raw|filtered]_feature_bc', include.dirs=TRUE, full.names=TRUE)
+          xenium_check = list.files(samples_file_path_test[2], pattern='cell_feature_matrix', include.dirs=TRUE, full.names=TRUE)
+          
           if(!(rlang::is_empty(visium_check))){
-            h5_test = grep('\\.h5$', visium_check, value=T)
+            h5_test = grep('\\.h5$', visium_check, value=TRUE)
             if(!(rlang::is_empty(h5_test))){
               if(hdf5r::is_hdf5(h5_test)){
                 inputtype$samples = c('samplesfile_visium_h5', del)
@@ -394,7 +396,20 @@ detect_input = function(rnacounts=NULL, spotcoords=NULL, samples=NULL){
             } else{
               inputtype$samples = c('samplesfile_visium_mex', del)
             }
+            
+          } else if(!(rlang::is_empty(xenium_check))){
+            h5_test = grep('\\.h5$', xenium_check, value=TRUE)
+            if(!(rlang::is_empty(h5_test))){
+              if(hdf5r::is_hdf5(h5_test)){
+                inputtype$samples = c('samplesfile_xenium_h5', del)
+              } else{
+                warning('The .h5 file does not seem to be in HDF5 format')
+              }
+            } else{
+              inputtype$samples = c('samplesfile_xenium_mex', del)
+            }
           }
+          
         } else{
           stop('If intended input is a Visium output, could not find directory path.')
         }
@@ -513,15 +528,17 @@ detect_input = function(rnacounts=NULL, spotcoords=NULL, samples=NULL){
     }
   }
 
-  # CASE: FILE PATHS TO VISIUM DIRECTORIES.
+  # CASE: FILE PATHS TO VISIUM OR XENIUM DIRECTORIES.
   # Test that `rnacounts` were provided and first element is a directory.
   # Need also sample names that partially match the file path to be provided
   if(!is.null(rnacounts) && is.null(spotcoords) && !is.null(samples)){
     if(dir.exists(rnacounts[1])){
-      # Check that dirctory contains an element with name matching 'filtered_feature_bc'.
-      visium_check = list.files(rnacounts[1], pattern='[raw|filtered]_feature_bc', include.dirs=T, full.names=T)
+      
+      visium_check = list.files(rnacounts[1], pattern='[raw|filtered]_feature_bc', include.dirs=TRUE, full.names=TRUE)
+      xenium_check = list.files(rnacounts[1], pattern='cell_feature_matrix', include.dirs=TRUE, full.names=TRUE)
+      
       if(!(rlang::is_empty(visium_check))){
-        h5_test = grep('\\.h5$', visium_check, value=T)
+        h5_test = grep('\\.h5$', visium_check, value=TRUE)
         if(!(rlang::is_empty(h5_test))){
           if(hdf5r::is_hdf5(h5_test)){
             inputtype$rna = 'visium_out_h5'
@@ -531,19 +548,28 @@ detect_input = function(rnacounts=NULL, spotcoords=NULL, samples=NULL){
         } else{
           inputtype$rna = 'visium_out_mex'
         }
+        
+      } else if(!(rlang::is_empty(xenium_check))){
+        h5_test = grep('\\.h5$', xenium_check, value=TRUE)
+        if(!(rlang::is_empty(h5_test))){
+          if(hdf5r::is_hdf5(h5_test)){
+            inputtype$rna = 'xenium_out_h5'
+          } else{
+            warning('The .h5 file does not seem to be in HDF5 format')
+          }
+        } else{
+          inputtype$rna = 'xenium_out_mex'
+        }
+        
+      } else{
+        stop('If intended input is a Visium or Xenium output, could not find directory path.')
       }
-    } else{
-      stop('If intended input is a Visium output, could not find directory path.')
     }
-
-    # Determine what was entered as `samples`.
-#    if(length(samples) == 1 && file.exists(samples)){
-    if(length(samples) == 1 && file.exists(samples) && !dir.exists(samples)){ # Suggested by Mr. Manjarres
-      # Read samples file and see which delimiter has.
+    
+    if(length(samples) == 1 && file.exists(samples) && !dir.exists(samples)){
       samples_file = readLines(samples, n=2)
       is_tab_samples = grepl("\t", samples_file[2])
       is_comma_samples = grepl(",", samples_file[2])
-      # Determine delimiter of file.
       if(is_tab_samples){
         del = '\t'
       } else if(is_comma_samples){
@@ -554,15 +580,12 @@ detect_input = function(rnacounts=NULL, spotcoords=NULL, samples=NULL){
       inputtype$samples = c('samplesfile', del)
     } else if(length(samples) == length(rnacounts)){
       inputtype$samples = 'sample_names'
-    #} else if(is.data.frame(test_clin)){
     } else if(is.data.frame(samples)){
       raise_err(err_code='error0004')
     } else{
-      stop('Number of sample names do not match number of Visium output folders.')
+      stop('Number of sample names do not match number of Visium/Xenium output folders.')
     }
   }
-
-  return(inputtype)
 
 } # CLOSE detect_input
 
